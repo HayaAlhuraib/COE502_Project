@@ -3,11 +3,17 @@
 #include <math.h>
 #include <immintrin.h> // For AVX intrinsics
 #include <pthread.h>
+#include "args.h" // Include the header file where args_t is defined
 
 // Constants
 #define INV_SQRT_2PI 0.3989422804014327f
 
-// SIMD CNDF Function using AVX
+// Function prototypes
+void exp_simd(__m256 x, __m256 *result);
+void log_simd(__m256 x, __m256 *result);
+void CNDF_SIMD(__m256 x, __m256 *result);
+
+/* SIMD CNDF Function using AVX */
 void CNDF_SIMD(__m256 x, __m256 *result) {
     __m256 sign_mask = _mm256_cmp_ps(x, _mm256_set1_ps(0.0f), _CMP_LT_OS);
     x = _mm256_andnot_ps(sign_mask, x); // absolute value
@@ -51,6 +57,7 @@ void log_simd(__m256 x, __m256 *result) {
     *result = _mm256_loadu_ps(temp);
 }
 
+
 /* SIMD implementation function */
 void* impl_simd(void* args) {
     args_t* arguments = (args_t*)args;
@@ -72,7 +79,7 @@ void* impl_simd(void* args) {
         __m256 log_term;
         log_simd(_mm256_div_ps(spot_price, strike), &log_term);
 
-        __m256 half_vol_squared = _mm256 mul_ps(volatility, volatility);
+        __m256 half_vol_squared = _mm256_mul_ps(volatility, volatility);
         __m256 d1 = _mm256_div_ps(
             _mm256_add_ps(
                 log_term,
@@ -89,7 +96,7 @@ void* impl_simd(void* args) {
         // Calculate option prices using CNDF
         __m256 call_price = _mm256_sub_ps(
             _mm256_mul_ps(spot_price, CNDF_SIMD(d1)),
-            _mm256_mul_ps(strike, _mm256_exp_ps(_mm256_mul_ps(_mm256_neg_ps(rate), otime)), CNDF_SIMD(d2))
+            _mm256_mul_ps(strike, _mm256_exp_ps(_mm256_mul_ps(_mm256_set1_ps(-1.0f), rate), otime), CNDF_SIMD(d2))
         );
 
         // Store results
