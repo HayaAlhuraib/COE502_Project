@@ -120,10 +120,9 @@ int main(int argc, char** argv) {
     float* volatility = malloc(num_stocks * sizeof(float));
     float* otime = malloc(num_stocks * sizeof(float));
     int* otype = malloc(num_stocks * sizeof(int));
-    float* output = malloc(num_stocks * sizeof(float));
+    float* output = malloc(num_st ocks * sizeof(float));
 
-    if (!sptPrice || !strike || !rate || !volatility || !otime || !otype || !output) ```c
-    {
+    if (!sptPrice || !strike || !rate || !volatility || !otime || !otype || !output) {
         fprintf(stderr, "Memory allocation failed.\n");
         free_args(&(args_t){.sptPrice = sptPrice, .strike = strike, .rate = rate, 
                             .volatility = volatility, .otime = otime, .otype = otype, .output = output});
