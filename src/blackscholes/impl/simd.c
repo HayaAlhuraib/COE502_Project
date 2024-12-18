@@ -3,11 +3,20 @@
 #include <math.h>
 #include <immintrin.h> // For AVX intrinsics
 #include <pthread.h>
-#include "args.h" // Include the header file where args_t is defined
+#include <stddef.h>
 
 // Constants
 #define INV_SQRT_2PI 0.3989422804014327f
-
+typedef struct {
+    size_t num_stocks;    // Number of stocks/options to process
+    float* sptPrice;      // Array of spot prices
+    float* strike;        // Array of strike prices
+    float* rate;          // Array of interest rates
+    float* volatility;    // Array of volatilities
+    float* otime;         // Array of option times (time to expiration)
+    int* otype;           // Array of option types (0 for call, 1 for put)
+    float* output;        // Array to store the output results (option prices)
+} args_t;
 // Function prototypes
 void exp_simd(__m256 x, __m256 *result);
 void log_simd(__m256 x, __m256 *result);
