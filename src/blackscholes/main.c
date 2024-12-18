@@ -1,4 +1,3 @@
-/* Standard C includes */
 #define _GNU_SOURCE
 #include <assert.h>
 #include <stdio.h>
@@ -14,6 +13,7 @@
 #include "impl/para.h"
 #include "impl/mimd.h" 
 #include "impl/simd.h" 
+
 /* Structure to hold Black-Scholes parameters */
 typedef struct {
     size_t num_stocks;   // Number of stocks
@@ -31,6 +31,7 @@ void* impl_scalar(void* args);
 void* impl_vector(void* args);
 void* impl_parallel(void* args);
 void* impl_mimd(void* args);
+void* impl_simd(void* args);
 
 /* Helper function to free allocated memory */
 void free_args(args_t* args) {
@@ -43,12 +44,22 @@ void free_args(args_t* args) {
     free(args->output);
 }
 
+/* Function to measure execution time of an implementation */
+double measure_execution_time(void* (*impl)(void*), args_t* args, int nruns) {
+    clock_t start_time = clock();
+    for (int i = 0; i < nruns; i++) {
+        (*impl)(args);
+    }
+    clock_t end_time = clock();
+    return (double)(end_time - start_time) / CLOCKS_PER_SEC;
+}
+
 int main(int argc, char** argv) {
     /* Set the buffer for printf to NULL */
     setbuf(stdout, NULL);
 
     /* Arguments */
-    int nruns = 1;         // Default number of runs
+    int nruns = 1; // Default number of runs
     void* (*impl)(void* args) = NULL;
     const char* impl_str = NULL;
 
@@ -59,15 +70,14 @@ int main(int argc, char** argv) {
             if (strcmp(argv[i], "naive") == 0) {
                 impl = impl_scalar;
                 impl_str = "scalar";
-            } else if (strcmp(argv[i], "vec") == 0) {
-                impl = impl_vector;
-                impl_str = "vector";
             } else if (strcmp(argv[i], "simd") == 0) {
                 impl = impl_simd;
                 impl_str = "simd";
             } else if (strcmp(argv[i], "mimd") == 0) {
                 impl = impl_mimd;
                 impl_str = "mimd";
+            } else if (strcmp(argv[i], "all") == 0) {
+                impl_str = "all";
             } else {
                 fprintf(stderr, "Unknown implementation: %s\n", argv[i]);
                 exit(1);
@@ -82,8 +92,8 @@ int main(int argc, char** argv) {
         }
     }
 
-    if (impl == NULL) {
-        fprintf(stderr, "Usage: %s -i {naive|vec|simd|mimd} [--nruns nruns]\n", argv[0]);
+    if (impl_str == NULL) {
+        fprintf(stderr, "Usage: %s -i {naive|simd|mimd|all} [--nruns nruns]\n", argv[0]);
         exit(1);
     }
 
@@ -148,26 +158,40 @@ int main(int argc, char** argv) {
         .output = output
     };
 
-    /* Measure execution time */
-    clock_t start_time = clock();
+    if (strcmp(impl_str, "all") == 0) {
+        /* Measure execution times for each implementation */
+        double time_naive = measure_execution_time(impl_scalar, &args, nruns);
+        double time_simd = measure_execution_time(impl_simd, &args, nruns);
+        double time_mimd = measure_execution_time(impl_mimd, &args, nruns);
 
-    for (int i = 0; i < nruns; i++) {
-        (*impl)(&args); // Call the selected implementation
+        /* Calculate speedup */
+        double speedup_simd = time_naive / time_simd;
+        double speedup_mimd = time_naive / time_mimd;
+
+        /* Print execution details */
+        printf("\nExecution Times:\n");
+        printf("Naive (scalar) implementation: %.6f seconds\n", time_naive);
+        printf("SIMD implementation: %.6f seconds\n", time_simd);
+        printf("MIMD implementation: %.6f seconds\n", time_mimd);
+
+        printf("\nSpeedup compared to naive (scalar) implementation:\n");
+        printf("SIMD speedup: %.2f\n", speedup_simd);
+        printf("MIMD speedup: %.2f\n", speedup_mimd);
+    } else {
+        /* Measure execution time */
+        double elapsed_time = measure_execution_time(impl, &args, nruns);
+
+        /* Print results */
+        printf("\nOption Prices:\n");
+        for (size_t i = 0; i < num_stocks; i++) {
+            printf("Stock %zu: %f\n", i + 1, output[i]);
+        }
+
+        /* Print execution details */
+        printf("\nSelected implementation: %s\n", impl_str);
+        printf("Number of runs: %d\n", nruns);
+        printf("Execution Time: %.6f seconds\n", elapsed_time);
     }
-
-    clock_t end_time = clock();
-    double elapsed_time = (double)(end_time - start_time) / CLOCKS_PER_SEC;
-
-    /* Print results */
-    printf("\nOption Prices:\n");
-    for (size_t i = 0; i < num_stocks; i++) {
-        printf("Stock %zu: %f\n", i + 1, output[i]);
-    }
-
-    /* Print execution details */
-    printf("\nSelected implementation: %s\n", impl_str);
-    printf("Number of runs: %d\n", nruns);
-    printf("Execution Time: %.6f seconds\n", elapsed_time);
 
     /* Free memory */
     free_args(&args);
