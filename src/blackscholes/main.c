@@ -54,6 +54,11 @@ double measure_execution_time(void* (*impl)(void*), args_t* args, int nruns) {
     return (double)(end_time - start_time) / CLOCKS_PER_SEC;
 }
 
+/* Function to generate random float within a range */
+float rand_float(float min, float max) {
+    return min + ((float) rand() / RAND_MAX) * (max - min);
+}
+
 int main(int argc, char** argv) {
     /* Set the buffer for printf to NULL */
     setbuf(stdout, NULL);
@@ -105,6 +110,16 @@ int main(int argc, char** argv) {
         return 1;
     }
 
+    /* Get number of runs */
+    printf("Enter the number of runs: ");
+    if (scanf("%d", &nruns) != 1) {
+        fprintf(stderr, "Error reading the number of runs.\n");
+        return 1;
+    }
+
+    /* Seed random number generator */
+    srand(time(NULL));
+
     /* Allocate memory for inputs */
     float* sptPrice = malloc(num_stocks * sizeof(float));
     float* strike = malloc(num_stocks * sizeof(float));
@@ -121,29 +136,14 @@ int main(int argc, char** argv) {
         return 1;
     }
 
-    /* Get inputs for each stock */
+    /* Generate random inputs for each stock */
     for (size_t i = 0; i < num_stocks; i++) {
-        printf("\nEnter details for stock %zu:\n", i + 1);
-
-        printf("Spot Price: ");
-        scanf("%f", &sptPrice[i]);
-
-        printf("Strike Price: ");
-        scanf("%f", &strike[i]);
-
-        printf("Risk-Free Rate: ");
-        scanf("%f", &rate[i]);
-
-        printf("Volatility: ");
-        scanf("%f", &volatility[i]);
-
-        printf("Time-to-Maturity: ");
-        scanf("%f", &otime[i]);
-
-        printf("Option Type ('P' for put, 'C' for call): ");
-        char otype_c;
-        scanf(" %c", &otype_c);
-        otype[i] = (tolower(otype_c) == 'p') ? 1 : 0;
+        sptPrice[i] = rand_float(50, 150);
+        strike[i] = rand_float(50, 150);
+        rate[i] = rand_float(0.01, 0.05);
+        volatility[i] = rand_float(0.1, 0.5);
+        otime[i] = rand_float(0.5, 2);
+        otype[i] = rand() % 2; // 0 for call, 1 for put
     }
 
     /* Create args_t structure */
