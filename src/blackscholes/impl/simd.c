@@ -84,10 +84,13 @@ void* impl_simd(void* args) {
         __m256 otime = _mm256_loadu_ps(&arguments->otime[i]);
 
         // Calculate d1 and d2
+        __m256 log_spot_strike;
+        log_simd(_mm256_div_ps(spot_price, strike), &log_spot_strike);
+
         __m256 d1 = _mm256_add_ps(
             _mm256_div_ps(
                 _mm256_add_ps(
-                    log_simd(_mm256_div_ps(spot_price, strike), &d1),
+                    log_spot_strike,
                     _mm256_mul_ps(rate, otime)
                 ),
                 _mm256_mul_ps(volatility, _mm256_sqrt_ps(otime))
@@ -103,9 +106,12 @@ void* impl_simd(void* args) {
         CNDF_SIMD(d2, &result_d2);
 
         // Calculate call price
+        __m256 exp_neg_rate_otime;
+        exp_simd(_mm256_mul_ps(_mm256_set1_ps(-1.0f), rate), &exp_neg_rate_otime);
+
         __m256 call_price = _mm256_sub_ps(
             _mm256_mul_ps(spot_price, result_d1),
-            _mm256_mul_ps(strike, exp_simd(_mm256_mul_ps(_mm256_set1_ps(-1.0f), rate), &d2))
+            _mm256_mul_ps(strike, exp_neg_rate_otime)
         );
 
         // Store the result in the output array
