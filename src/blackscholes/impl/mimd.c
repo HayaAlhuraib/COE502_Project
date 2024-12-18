@@ -9,7 +9,6 @@
 
 
 
-
 /* Structure to hold arguments for each thread */
 typedef struct {
     float* sptPrice;
@@ -42,7 +41,7 @@ void* thread_func(void* args) {
 void* impl_mimd(void* args) {
     args_t* arguments = (args_t*)args;
     size_t num_stocks = arguments->num_stocks;
-    int nthreads = arguments->nthreads;
+    int nthreads = 4;
 
     pthread_t threads[nthreads];
     thread_args_t targs[nthreads];
