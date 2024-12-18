@@ -3,7 +3,7 @@
 #include <math.h>
 #include <pthread.h>
 #include <numa.h> // For NUMA awareness
-#include "include/types.h"
+
 #include "CNDF.h"
 #include "blackscholes.h"
 
