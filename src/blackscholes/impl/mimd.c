@@ -27,7 +27,13 @@ typedef struct {
 void* thread_func(void* args) {
     thread_args_t* targs = (thread_args_t*)args;
     for (size_t i = targs->start; i < targs->end; i++) {
-        targs->output[i] = blackScholes(targs->sptPrice[i], targs->strike[i], targs->rate[i], targs->volatility[i], targs->otime[i], targs->otype[i]);
+        float result = blackScholes(targs->sptPrice[i], targs->strike[i], targs->rate[i], targs->volatility[i], targs->otime[i], targs->otype[i]);
+        if (isnan(result) || isinf(result)) {
+         
+            targs->output[i] = 0.0f;
+        } else {
+            targs->output[i] = result;
+        }
     }
     return NULL;
 }
