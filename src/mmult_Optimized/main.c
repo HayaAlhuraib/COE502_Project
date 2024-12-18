@@ -90,11 +90,6 @@ int main(int argc, char** argv) {
             } else if (strcmp(argv[i], "opt") == 0) {
                 impl = impl_scalar_opt;
                 impl_str = "opt";
-            }else if (strcmp(argv[i], "para") == 0) {
-            impl = impl_parallel;
-
-            impl_str = "para";
-
             }  else if (strcmp(argv[i], "both") == 0) {
                 run_both = true;
             } else {
@@ -105,7 +100,7 @@ int main(int argc, char** argv) {
         }
     }
     if (impl == NULL && !run_both) {
-        fprintf(stderr, "Usage: %s -i {naive|opt|para|both}\n", argv[0]);
+        fprintf(stderr, "Usage: %s -i {naive|opt|both}\n", argv[0]);
         exit(1);
     }
     /* Create the Result directory */
@@ -197,24 +192,7 @@ int main(int argc, char** argv) {
         free(args_opt.input);
     }
 
-     
-
-     if (run_both || impl == impl_parallel) {
-        args_t args_para = { .input = malloc((rows_A * cols_A + rows_B * cols_B) * sizeof(float)), .output = R_para, .size = rows_A };
-        memcpy(args_para.input, A, rows_A * cols_A * sizeof(float));
-        memcpy((float*)args_para.input + rows_A * cols_A, B, rows_B * cols_B * sizeof(float));
-
-        clock_t start_para = clock();
-        impl_parallel(&args_para);
-        clock_t end_para= clock();
-
-        para_time = (double)(end_para - start_para) / CLOCKS_PER_SEC;
-        printf("para Implementation Runtime: %.6f seconds\n", para_time);
-        /* print_matrix("Result Matrix R (para)", R_para, rows_A, cols_B);*/
-        export_matrix_to_csv("result_para.csv", R_para, rows_A, cols_B);
-
-        free(args_para.input);
-    }
+  
 
     /* Calculate and print speedup */
     if (run_both && naive_time > 0 && opt_time > 0) {
