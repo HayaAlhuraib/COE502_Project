@@ -16,14 +16,14 @@
 
 /* Structure to hold Black-Scholes parameters */
 typedef struct {
-    size_t num_stocks;   // Number of stocks
-    float* sptPrice;     // Array of spot prices
-    float* strike;       // Array of strike prices
-    float* rate;         // Array of risk-free rates
-    float* volatility;   // Array of volatilities
-    float* otime;        // Array of times to maturity
-    int* otype;          // Array of option types (1 for put, 0 for call)
-    float* output;       // Output array for option prices
+    size_t num_stocks;
+    float* sptPrice;
+    float* strike;
+    float* rate;
+    float* volatility;
+    float* otime;
+    int* otype;
+    float* output;
 } args_t;
 
 /* Function prototypes for different implementations */
@@ -60,15 +60,12 @@ float rand_float(float min, float max) {
 }
 
 int main(int argc, char** argv) {
-    /* Set the buffer for printf to NULL */
     setbuf(stdout, NULL);
 
-    /* Arguments */
-    int nruns = 1; // Default number of runs
+    int nruns = 1;
     void* (*impl)(void* args) = NULL;
     const char* impl_str = NULL;
 
-    /* Parse command-line arguments */
     for (int i = 1; i < argc; i++) {
         if (strcmp(argv[i], "-i") == 0 || strcmp(argv[i], "--impl") == 0) {
             assert(++i < argc);
@@ -102,7 +99,6 @@ int main(int argc, char** argv) {
         exit(1);
     }
 
-    /* Number of stocks */
     size_t num_stocks;
     printf("Enter the number of stocks: ");
     if (scanf("%zu", &num_stocks) != 1) {
@@ -110,17 +106,14 @@ int main(int argc, char** argv) {
         return 1;
     }
 
-    /* Get number of runs */
     printf("Enter the number of runs: ");
     if (scanf("%d", &nruns) != 1) {
         fprintf(stderr, "Error reading the number of runs.\n");
         return 1;
     }
 
-    /* Seed random number generator */
     srand(time(NULL));
 
-    /* Allocate memory for inputs */
     float* sptPrice = malloc(num_stocks * sizeof(float));
     float* strike = malloc(num_stocks * sizeof(float));
     float* rate = malloc(num_stocks * sizeof(float));
@@ -136,17 +129,15 @@ int main(int argc, char** argv) {
         return 1;
     }
 
-    /* Generate random inputs for each stock */
     for (size_t i = 0; i < num_stocks; i++) {
         sptPrice[i] = rand_float(50, 150);
         strike[i] = rand_float(50, 150);
         rate[i] = rand_float(0.01, 0.05);
         volatility[i] = rand_float(0.1, 0.5);
         otime[i] = rand_float(0.5, 2);
-        otype[i] = rand() % 2; // 0 for call, 1 for put
+        otype[i] = rand() % 2;
     }
 
-    /* Create args_t structure */
     args_t args = {
         .num_stocks = num_stocks,
         .sptPrice = sptPrice,
@@ -158,17 +149,18 @@ int main(int argc, char** argv) {
         .output = output
     };
 
+    printf("Running implementation: %s\n", impl_str);
+    printf("Number of stocks: %zu\n", num_stocks);
+    printf("Number of runs: %d\n", nruns);
+
     if (strcmp(impl_str, "all") == 0) {
-        /* Measure execution times for each implementation */
         double time_naive = measure_execution_time(impl_scalar, &args, nruns);
         double time_simd = measure_execution_time(impl_simd, &args, nruns);
         double time_mimd = measure_execution_time(impl_mimd, &args, nruns);
 
-        /* Calculate speedup */
         double speedup_simd = time_naive / time_simd;
         double speedup_mimd = time_naive / time_mimd;
 
-        /* Print execution details */
         printf("\nExecution Times:\n");
         printf("Naive (scalar) implementation: %.6f seconds\n", time_naive);
         printf("SIMD implementation: %.6f seconds\n", time_simd);
@@ -178,22 +170,18 @@ int main(int argc, char** argv) {
         printf("SIMD speedup: %.2f\n", speedup_simd);
         printf("MIMD speedup: %.2f\n", speedup_mimd);
     } else {
-        /* Measure execution time */
         double elapsed_time = measure_execution_time(impl, &args, nruns);
 
-        /* Print results */
         printf("\nOption Prices:\n");
         for (size_t i = 0; i < num_stocks; i++) {
             printf("Stock %zu: %f\n", i + 1, output[i]);
         }
 
-        /* Print execution details */
         printf("\nSelected implementation: %s\n", impl_str);
         printf("Number of runs: %d\n", nruns);
         printf("Execution Time: %.6f seconds\n", elapsed_time);
     }
 
-    /* Free memory */
     free_args(&args);
 
     return 0;
