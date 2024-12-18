@@ -41,7 +41,7 @@ void* thread_func(void* args) {
 void* impl_mimd(void* args) {
     args_t* arguments = (args_t*)args;
     size_t num_stocks = arguments->num_stocks;
-    int nthreads = 4;
+    int nthreads = 8;
 
     pthread_t threads[nthreads];
     thread_args_t targs[nthreads];
