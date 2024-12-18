@@ -8,6 +8,8 @@
 #include "CNDF.h"
 #include "blackscholes.h"
 
+#pragma GCC target("avx2") // Ensure we are targeting AVX2 instructions
+
 #define INV_SQRT_2PI 0.3989422804014327
 
 // Helper function for exponential (approximated scalar function applied to vectors)
