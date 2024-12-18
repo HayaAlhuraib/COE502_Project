@@ -101,14 +101,14 @@ int main(int argc, char** argv) {
 
     size_t num_stocks;
     printf("Enter the number of stocks: ");
-    if (scanf("%zu", &num_stocks) != 1) {
-        fprintf(stderr, "Error reading the number of stocks.\n");
+    if (scanf("%zu", &num_stocks) != 1 || num_stocks <= 0) {
+        fprintf(stderr, "Error: Number of stocks must be a positive integer.\n");
         return 1;
     }
 
     printf("Enter the number of runs: ");
-    if (scanf("%d", &nruns) != 1) {
-        fprintf(stderr, "Error reading the number of runs.\n");
+    if (scanf("%d", &nruns) != 1 || nruns <= 0) {
+        fprintf(stderr, "Error: Number of runs must be a positive integer.\n");
         return 1;
     }
 
@@ -122,7 +122,8 @@ int main(int argc, char** argv) {
     int* otype = malloc(num_stocks * sizeof(int));
     float* output = malloc(num_stocks * sizeof(float));
 
-    if (!sptPrice || !strike || !rate || !volatility || !otime || !otype || !output) {
+    if (!sptPrice || !strike || !rate || !volatility || !otime || !otype || !output) ```c
+    {
         fprintf(stderr, "Memory allocation failed.\n");
         free_args(&(args_t){.sptPrice = sptPrice, .strike = strike, .rate = rate, 
                             .volatility = volatility, .otime = otime, .otype = otype, .output = output});
