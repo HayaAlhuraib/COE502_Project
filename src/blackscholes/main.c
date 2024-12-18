@@ -173,4 +173,16 @@ int main(int argc, char** argv) {
         double elapsed_time = measure_execution_time(impl, &args, nruns);
 
         printf("\nOption Prices:\n");
-        for (size_t i = 0; i < num_stocks; i++)
+        for (size_t i = 0; i < num_stocks; i++) {
+            printf("Stock %zu: %f\n", i + 1, output[i]);
+        }
+
+        printf("\nSelected implementation: %s\n", impl_str);
+        printf("Number of runs: %d\n", nruns);
+        printf("Execution Time: %.6f seconds\n", elapsed_time);
+    }
+
+    free_args(&args);
+
+    return 0;
+}
