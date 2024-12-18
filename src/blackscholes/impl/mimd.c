@@ -6,7 +6,9 @@
 
 #include "CNDF.h"
 #include "blackscholes.h"
+#include "common/types.h"
 
+#include "include/types.h"
 /* Structure to hold arguments for each thread */
 typedef struct {
     float* sptPrice;
