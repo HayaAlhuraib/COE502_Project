@@ -1,11 +1,13 @@
+
+#include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <math.h>
 #include <immintrin.h> // For AVX intrinsics
-#include <pthread.h>
-#include <stddef.h>
+#include "CNDF.h" // Include the header file for the CNDF function
 
 // Constants
+#define INV_SQRT_2PI 0.3989422804014327f
 #define INV_SQRT_2PI 0.3989422804014327f
 typedef struct {
     size_t num_stocks;    // Number of stocks/options to process
@@ -51,23 +53,12 @@ void exp_simd(__m256 x, __m256 *result) {
     float temp[8];
     _mm256_storeu_ps(temp, x);
     for (int i = 0; i < 8; i++) {
-        temp[i] = expf(temp[i]);
+        temp[i] = expf(temp[i]); // Compute the exponential for each element
     }
-    *result = _mm256_loadu_ps(temp);
+    *result = _mm256_loadu_ps(temp); // Load the results back into the SIMD register
 }
 
-// Helper function for logarithm (vectorized approximation)
-void log_simd(__m256 x, __m256 *result) {
-    float temp[8];
-    _mm256_storeu_ps(temp, x);
-    for (int i = 0; i < 8; i++) {
-        temp[i] = logf(temp[i]);
-    }
-    *result = _mm256_loadu_ps(temp);
-}
-
-
-/* SIMD implementation function */
+// Main SIMD implementation function
 void* impl_simd(void* args) {
     args_t* arguments = (args_t*)args;
     size_t num_stocks = arguments->num_stocks;
@@ -79,51 +70,53 @@ void* impl_simd(void* args) {
         __m256 spot_price = _mm256_loadu_ps(&arguments->sptPrice[i]);
         __m256 strike = _mm256_loadu_ps(&arguments->strike[i]);
         __m256 rate = _mm256_loadu_ps(&arguments->rate[i]);
-        __m256 volatility = _mm256_loadu_ps(&arguments->volatility[i]);
+        __m256 volatility = _mm256_loadu_ps(& arguments->volatility[i]);
         __m256 otime = _mm256_loadu_ps(&arguments->otime[i]);
-        __m256 otype = _mm256_loadu_ps((float*)&arguments->otype[i]);
 
         // Calculate d1 and d2
-        __m256 sqrt_time = _mm256_sqrt_ps(otime);
-        __m256 log_term;
-        log_simd(_mm256_div_ps(spot_price, strike), &log_term);
-
-        __m256 half_vol_squared = _mm256_mul_ps(volatility, volatility);
-        __m256 d1 = _mm256_div_ps(
-            _mm256_add_ps(
-                log_term,
+        __m256 d1 = _mm256_add_ps(
+            _mm256_div_ps(
                 _mm256_add_ps(
-                    _mm256_mul_ps(rate, otime),
-                    _mm256_mul_ps(half_vol_squared, otime)
-                )
+                    _mm256_log_ps(_mm256_div_ps(spot_price, strike)),
+                    _mm256_mul_ps(rate, otime)
+                ),
+                _mm256_mul_ps(volatility, _mm256_sqrt_ps(otime))
             ),
-            _mm256_mul_ps(volatility, sqrt_time)
+            _mm256_set1_ps(0.0f) // Adjust as needed for your calculations
         );
 
-        __m256 d2 = _mm256_sub_ps(d1, _mm256_mul_ps(volatility, sqrt_time));
+        __m256 d2 = _mm256_sub_ps(d1, _mm256_mul_ps(volatility, _mm256_sqrt_ps(otime)));
 
-        // Calculate option prices using CNDF
+        // Calculate CNDF for d1 and d2
+        __m256 result_d1, result_d2;
+        CNDF_SIMD(d1, &result_d1);
+        CNDF_SIMD(d2, &result_d2);
+
+        // Calculate call price
         __m256 call_price = _mm256_sub_ps(
-            _mm256_mul_ps(spot_price, CNDF_SIMD(d1)),
-            _mm256_mul_ps(strike, _mm256_exp_ps(_mm256_mul_ps(_mm256_set1_ps(-1.0f), rate), otime), CNDF_SIMD(d2))
+            _mm256_mul_ps(spot_price, result_d1),
+            _mm256_mul_ps(strike, _mm256_exp_ps(_mm256_mul_ps(_mm256_set1_ps(-1.0f), rate), otime))
         );
 
-        // Store results
+        // Store the result in the output array
         _mm256_storeu_ps(&arguments->output[i], call_price);
     }
 
-    // Handle remaining stocks
+    // Handle remaining stocks (if any)
     for (; i < num_stocks; i++) {
-        float d1 = (log(arguments->sptPrice[i] / arguments->strike[i]) + 
-                    (arguments->rate[i] + 0.5 * arguments->volatility[i] * arguments->volatility[i]) * arguments->otime[i]) / 
-                    (arguments->volatility[i] * sqrt(arguments->otime[i]));
-        float d2 = d1 - arguments->volatility[i] * sqrt(arguments->otime[i]);
+        // Scalar fallback for remaining stocks
+        float sptPrice = arguments->sptPrice[i];
+        float strikePrice = arguments->strike[i];
+        float r = arguments->rate[i];
+        float vol = arguments->volatility[i];
+        float t = arguments->otime[i];
 
-        float call_price = arguments->sptPrice[i] * CNDF(d1) - 
-                           arguments->strike[i] * exp(-arguments->rate[i] * arguments->otime[i]) * CNDF(d2);
+        float d1 = (log(sptPrice / strikePrice) + (r + 0.5 * vol * vol) * t) / (vol * sqrt(t));
+        float d2 = d1 - vol * sqrt(t);
 
+        float call_price = sptPrice * CNDF(d1) - strikePrice * exp(-r * t) * CNDF(d2);
         arguments->output[i] = call_price;
     }
 
-    return NULL;
+    return NULL; // Return from the thread
 }
