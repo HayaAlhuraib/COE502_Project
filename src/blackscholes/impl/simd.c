@@ -8,8 +8,6 @@
 #include "CNDF.h"
 #include "blackscholes.h"
 
-#pragma GCC target("avx2") // Ensure we are targeting AVX2 instructions
-
 #define INV_SQRT_2PI 0.3989422804014327
 
 // Helper function for exponential (approximated scalar function applied to vectors)
@@ -46,11 +44,10 @@ void CNDF_SIMD(__m256 x, __m256 *result) {
     __m256 k = _mm256_rcp_ps(_mm256_add_ps(_mm256_set1_ps(1.0f), _mm256_mul_ps(_mm256_set1_ps(0.2316419f), x)));
     __m256 k_sum = _mm256_mul_ps(k, _mm256_set1_ps(0.319381530f));
 
-    k_sum = _mm256_fmadd_ps(k, k, k_sum);
-    k_sum = _mm256_fmadd_ps(k, k_sum, _mm256_set1_ps(-0.356563782f));
-    k_sum = _mm256_fmadd_ps(k, k_sum, _mm256_set1_ps(1.781477937f));
-    k_sum = _mm256_fmadd_ps(k, k_sum, _mm256_set1_ps(-1.821255978f));
-    k_sum = _mm256_fmadd_ps(k, k_sum, _mm256_set1_ps(1.330274429f));
+    k_sum = _mm256_add_ps(_mm256_mul_ps(k, k_sum), _mm256_set1_ps(-0.356563782f));
+    k_sum = _mm256_add_ps(_mm256_mul_ps(k, k_sum), _mm256_set1_ps(1.781477937f));
+    k_sum = _mm256_add_ps(_mm256_mul_ps(k, k_sum), _mm256_set1_ps(-1.821255978f));
+    k_sum = _mm256_add_ps(_mm256_mul_ps(k, k_sum), _mm256_set1_ps(1.330274429f));
 
     __m256 one_minus = _mm256_sub_ps(_mm256_set1_ps(1.0f), _mm256_mul_ps(x_nprimeofx, k_sum));
 
@@ -75,7 +72,7 @@ void* impl_simd(void* args) {
         __m256 log_term;
         log_simd(_mm256_div_ps(spot_price, strike), &log_term);
 
-        __m256 d1 = _mm256_fmadd_ps(_mm256_mul_ps(rate, time), _mm256_set1_ps(0.5f), _mm256_mul_ps(volatility, volatility));
+        __m256 d1 = _mm256_add_ps(_mm256_mul_ps(_mm256_mul_ps(rate, time), _mm256_set1_ps(0.5f)), _mm256_mul_ps(volatility, volatility));
         d1 = _mm256_add_ps(d1, log_term);
         d1 = _mm256_div_ps(d1, _mm256_mul_ps(volatility, sqrt_time));
 
