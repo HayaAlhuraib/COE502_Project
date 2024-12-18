@@ -8,7 +8,6 @@
 
 // Constants
 #define INV_SQRT_2PI 0.3989422804014327f
-#define INV_SQRT_2PI 0.3989422804014327f
 typedef struct {
     size_t num_stocks;    // Number of stocks/options to process
     float* sptPrice;      // Array of spot prices
@@ -19,6 +18,7 @@ typedef struct {
     int* otype;           // Array of option types (0 for call, 1 for put)
     float* output;        // Array to store the output results (option prices)
 } args_t;
+
 // Function prototypes
 void exp_simd(__m256 x, __m256 *result);
 void log_simd(__m256 x, __m256 *result);
@@ -58,6 +58,16 @@ void exp_simd(__m256 x, __m256 *result) {
     *result = _mm256_loadu_ps(temp); // Load the results back into the SIMD register
 }
 
+// Helper function for logarithm (vectorized approximation)
+void log_simd(__m256 x, __m256 *result) {
+    float temp[8];
+    _mm256_storeu_ps(temp, x);
+    for (int i = 0; i < 8; i++) {
+        temp[i] = logf(temp[i]); // Compute the logarithm for each element
+    }
+    *result = _mm256_loadu_ps(temp); // Load the results back into the SIMD register
+}
+
 // Main SIMD implementation function
 void* impl_simd(void* args) {
     args_t* arguments = (args_t*)args;
@@ -70,14 +80,14 @@ void* impl_simd(void* args) {
         __m256 spot_price = _mm256_loadu_ps(&arguments->sptPrice[i]);
         __m256 strike = _mm256_loadu_ps(&arguments->strike[i]);
         __m256 rate = _mm256_loadu_ps(&arguments->rate[i]);
-        __m256 volatility = _mm256_loadu_ps(& arguments->volatility[i]);
+        __m256 volatility = _mm256_loadu_ps(&arguments->volatility[i]);
         __m256 otime = _mm256_loadu_ps(&arguments->otime[i]);
 
         // Calculate d1 and d2
         __m256 d1 = _mm256_add_ps(
             _mm256_div_ps(
                 _mm256_add_ps(
-                    _mm256_log_ps(_mm256_div_ps(spot_price, strike)),
+                    log_simd(_mm256_div_ps(spot_price, strike), &d1),
                     _mm256_mul_ps(rate, otime)
                 ),
                 _mm256_mul_ps(volatility, _mm256_sqrt_ps(otime))
@@ -95,7 +105,7 @@ void* impl_simd(void* args) {
         // Calculate call price
         __m256 call_price = _mm256_sub_ps(
             _mm256_mul_ps(spot_price, result_d1),
-            _mm256_mul_ps(strike, _mm256_exp_ps(_mm256_mul_ps(_mm256_set1_ps(-1.0f), rate), otime))
+            _mm256_mul_ps(strike, exp_simd(_mm256_mul_ps(_mm256_set1_ps(-1.0f), rate), &d2))
         );
 
         // Store the result in the output array
